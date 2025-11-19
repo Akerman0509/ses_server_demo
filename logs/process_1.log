@@ -1,0 +1,30 @@
+[2025-11-19 21:02:30.687] [INFO] Process 1 initialized
+[2025-11-19 21:02:30.687] [INFO] Vector Clock: [0, 0, 0]
+[2025-11-19 21:02:30.687] [INFO] Server started on localhost:5001
+[2025-11-19 21:02:30.687] [INFO] Receiver thread started
+[2025-11-19 21:02:30.687] [INFO] Sender thread started for P0
+[2025-11-19 21:02:30.688] [INFO] Sender thread started for P2
+[2025-11-19 21:02:30.688] [INFO] Started 2 sender threads
+[2025-11-19 21:02:31.529] [INFO] [RECEIVED] Msg#1 P0 → P1 with TS=[1, 0, 0], MSG_QUEUE=[0, 0, 0]
+[2025-11-19 21:02:31.529] [INFO] [✓ DELIVERED] Msg#1 P0 → P1, VC: [0, 0, 0] → [1, 1, 0], msg_queue: [0, 0, 0] → [0, 0, 0]
+[2025-11-19 21:02:33.688] [INFO] [→ SENT] Msg#1 P1 → P0, TS=[1, 2, 0], queue=[0, 0, 0]
+[2025-11-19 21:02:33.689] [INFO] [→ SENT] Msg#1 P1 → P2, TS=[1, 3, 0], queue=[[1, 2, 0], 0, 0]
+[2025-11-19 21:02:36.108] [INFO] [RECEIVED] Msg#1 P2 → P1 with TS=[1, 3, 3], MSG_QUEUE=[[1, 3, 2], 0, 0]
+[2025-11-19 21:02:36.108] [INFO] [✓ DELIVERED] Msg#1 P2 → P1, VC: [1, 3, 0] → [1, 4, 3], msg_queue: [[1, 3, 2], 0, [1, 3, 0]] → [[1, 3, 2], 0, [1, 3, 0]]
+[2025-11-19 21:02:54.547] [INFO] [RECEIVED] Msg#2 P0 → P1 with TS=[5, 3, 2], MSG_QUEUE=[0, [1, 0, 0], [2, 0, 0]]
+[2025-11-19 21:02:54.547] [INFO] [✓ DELIVERED] Msg#2 P0 → P1, VC: [1, 4, 3] → [5, 5, 3], msg_queue: [[1, 3, 2], 0, [2, 3, 0]] → [[1, 3, 2], 0, [2, 3, 0]]
+[2025-11-19 21:03:05.456] [INFO] [RECEIVED] Msg#2 P2 → P1 with TS=[1, 3, 4], MSG_QUEUE=[[1, 3, 2], [1, 3, 3], 0]
+[2025-11-19 21:03:05.456] [INFO] [✓ DELIVERED] Msg#2 P2 → P1, VC: [5, 5, 3] → [5, 6, 4], msg_queue: [[1, 3, 2], 0, [2, 3, 0]] → [[1, 3, 2], 0, [2, 3, 0]]
+[2025-11-19 21:03:08.788] [INFO] [→ SENT] Msg#2 P1 → P2, TS=[5, 7, 4], queue=[[1, 3, 2], 0, [2, 3, 0]]
+[2025-11-19 21:03:12.255] [INFO] [→ SENT] Msg#2 P1 → P0, TS=[5, 8, 4], queue=[[1, 3, 2], 0, [5, 7, 4]]
+[2025-11-19 21:03:32.430] [INFO] [→ SENT] Msg#3 P1 → P0, TS=[5, 9, 4], queue=[[5, 8, 4], 0, [5, 7, 4]]
+[2025-11-19 21:03:37.473] [INFO] [RECEIVED] Msg#3 P2 → P1 with TS=[1, 3, 6], MSG_QUEUE=[[1, 3, 5], [1, 3, 4], 0]
+[2025-11-19 21:03:37.473] [INFO] [✓ DELIVERED] Msg#3 P2 → P1, VC: [5, 9, 4] → [5, 10, 6], msg_queue: [[5, 9, 5], 0, [5, 7, 4]] → [[5, 9, 5], 0, [5, 7, 4]]
+[2025-11-19 21:03:44.139] [INFO] [→ SENT] Msg#3 P1 → P2, TS=[5, 11, 6], queue=[[5, 9, 5], 0, [5, 7, 4]]
+[2025-11-19 21:03:53.433] [INFO] [RECEIVED] Msg#3 P0 → P1 with TS=[10, 9, 7], MSG_QUEUE=[0, [5, 3, 6], [5, 7, 4]]
+[2025-11-19 21:03:53.433] [INFO] [✓ DELIVERED] Msg#3 P0 → P1, VC: [5, 11, 6] → [10, 12, 7], msg_queue: [[5, 9, 5], 0, [5, 11, 6]] → [[5, 9, 5], 0, [5, 11, 6]]
+[2025-11-19 21:03:54.961] [INFO] Sender thread completed for P0
+[2025-11-19 21:04:11.723] [INFO] Sender thread completed for P2
+[2025-11-19 21:04:11.724] [INFO] All senders completed, waiting for remaining messages...
+[2025-11-19 21:04:16.724] [INFO] Shutting down...
+[2025-11-19 21:04:16.724] [INFO] Process terminated

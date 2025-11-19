@@ -1,0 +1,14 @@
+
+
+{
+    "num_processes": 3,
+    "messages_per_process": 3,
+    "message_rate_min": 1,
+    "message_rate_max": 3,
+    "base_port": 5000,
+    "processes": [
+        {"id": 0, "host": "localhost", "port": 5000},
+        {"id": 1, "host": "localhost", "port": 5001},
+        {"id": 2, "host": "localhost", "port": 5002}
+    ]
+}
