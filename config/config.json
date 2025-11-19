@@ -1,7 +1,7 @@
 
 
 {
-    "num_processes": 3,
+    "num_processes": 2,
     "messages_per_process": 3,
     "message_rate_min": 1,
     "message_rate_max": 3,

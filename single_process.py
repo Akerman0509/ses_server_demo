@@ -153,6 +153,8 @@ class Process:
         
         # Message counter for each target process
         self.sent_count = {i: 0 for i in range(self.num_processes) if i != self.process_id}
+        
+        
     
     def setup_logging(self):
         """Thiết lập logging cho process"""
@@ -208,7 +210,7 @@ class Process:
         
         while self.running:
             try:
-                self.server_socket.settimeout(1.0)
+                self.server_socket.settimeout(2.0)
                 client_socket, addr = self.server_socket.accept()
                 
                 # Xử lý connection trong thread riêng
@@ -386,7 +388,6 @@ class Process:
         target_host = target_info['host']
         target_port = target_info['port']
         
-        # try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(10.0)
         sock.connect((target_host, target_port))
@@ -402,6 +403,7 @@ class Process:
             self.logger.error(f"No ACK received for message to P{target_id}")
         else:
             self.logger.info(f"[→ SENT] {msg}, TS={timestamp}, queue={msg.msg_queue}")
+            
         sock.close()
             
         # except Exception as e:
@@ -430,12 +432,44 @@ class Process:
             # Random delay dựa trên message rate
             rate = random.uniform(min_rate, max_rate)
             delay = 60.0 / rate  # Convert messages/minute to seconds
-            time.sleep(delay)
-            # time.sleep(2)
+            # time.sleep(delay)
+            time.sleep(2)
         
         self.logger.info(f"Sender thread completed for P{target_id}")
     
+    def shake_hands(self):
+        for target_id in range(self.num_processes):
+            """Gửi handshake tới tất cả processes khác"""
+            if target_id == self.process_id:
+                continue
+            
+    def shake_hands(self, retry_interval=2.0):
+        """
+        Liên tục thử kết nối đến tất cả process khác
+        retry_interval: thời gian (s) giữa các lần thử
+        """
+        for target_id in range(self.num_processes):
+            if target_id == self.process_id:
+                continue
+
+            target_info = self.config['processes'][target_id]
+            target_host = target_info['host']
+            target_port = target_info['port']
+
+            connected = False
+            while not connected:
+                try:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(5.0)
+                    sock.connect((target_host, target_port))
+                    self.logger.info(f"Handshake successful with P{target_id}")
+                    connected = True
+                except Exception as e:
+                    self.logger.warning(f"Cannot connect to P{target_id}, retrying in {retry_interval}s...")
+                    time.sleep(retry_interval)
+    
     def start_senders(self):
+        
         """Khởi động tất cả sender threads"""
         for target_id in range(self.num_processes):
             if target_id == self.process_id:
@@ -456,6 +490,9 @@ class Process:
         try:
             # Khởi động server
             self.start_server()
+            
+            # Thực hiện handshake với tất cả processes khác
+            self.shake_hands()
             
             # Khởi động senders
             self.start_senders()
