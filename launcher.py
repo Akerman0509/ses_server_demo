@@ -133,11 +133,11 @@ class ProcessLauncher:
         for line in iter(process.stdout.readline, ''):
             print(f"[P{process_id}] {line.strip()}")
     
-    def update_process_line(self, p_info, relative_line):
+    def update_process_line(self, p_info, relative_line, percent):
         pid = p_info['process'].pid
         status = p_info['process'].poll()
         status_str = "Running" if status is None else f"Exited({status})"
-        new_content = f"Process {p_info['id']:<6} {pid:<8} {status_str:<10}"
+        new_content = f"Process {p_info['id']:<6} {pid:<8} {status_str:<10} {percent:>3}% Complete"
 
         # Move cursor, clear line, write content
     # Save cursor position, move up, update, restore cursor
@@ -148,22 +148,45 @@ class ProcessLauncher:
         sys.stdout.write("\033[u")  # Restore cursor position
         sys.stdout.flush()
 
+        
+    def scan_loop(self, pid, expected):
+        global RUNNING_FLAG
+
+        while RUNNING_FLAG:
+            file_name = f"temp_status/P{pid}.txt"
+            if not os.path.exists(file_name):
+                return
+            with open(file_name, "r") as f:
+                line = f.readline().strip().strip("[]")
+                numbers = [float(x) for x in line.split(",")]
+
+            if numbers[pid] >= expected:
+                RUNNING_FLAG = False
+                
+            percent  = round(numbers[pid] * 100 / expected)
+            total_process = len(self.processes)
+            lines_up = total_process - pid
+            # Cập nhật dòng hiển thị tiến trình
+            self.update_process_line(self.processes[pid], lines_up, percent)
+            time.sleep(1.5)
+        
     def monitor_processes(self):
         """Giám sát các processes"""
         print("\nMonitoring processes... Press Ctrl+C to stop all.\n")
-        print(f"{'Process ID':<12} {'PID':<8} {'Status':<10}")
+        print(f"{'Process ID':<12} {'PID':<8} {'Status':<10} ")
         print("-" * 60)
 
         total_process = len(self.processes)
         for p_info in self.processes:
             pid = p_info['process'].pid
-            print(f"Process {p_info['id']:<6} {pid:<8} {'Running':<10}")
+            print(f"Process {p_info['id']:<6} {pid:<8} {'Running':<10} {'0':>3}% Complete")
         
-        expected = 2* (total_process - 1) *  self.config['num_processes']
-        percent_list = [0]*self.config['num_processes']
+        expected = 2* (total_process - 1) *  self.config['messages_per_process']
         
-        # for index,_ in enumerate(self.processes):
-        #     schedule_next_scan(index, expected, percent_list)
+        for idx, p_info in enumerate(self.processes):
+            # self.schedule_next_scan(idx, expected)
+            t = threading.Thread(target=self.scan_loop, args=(idx, expected), daemon=True)
+            t.start()
             
             
         # while True:
@@ -226,28 +249,8 @@ class ProcessLauncher:
         print(f"\nTotal log files: {len(log_files)}")
         print("="*60)
 
-def schedule_next_scan(pid, expected, percent_list):
-    global RUNNING_FLAG
-    """Schedule the next scan using Timer"""
-    if RUNNING_FLAG:
-        timer = threading.Timer(1.5, scan_progress, args=[pid, expected,percent_list])
-        timer.start()
-    
-def scan_progress(pid, expected, percent_list):
-    file_name = f"temp_status/P{pid}.txt"
-    if not os.path.exists(file_name):
-        return
-    with open(file_name, "r") as f:
-        line = f.readline().strip()     
-        line = line.strip("[]")         
-        numbers = [float(x) for x in line.split(",")]
-        
-    percent  = round(numbers[pid] * 100 / expected)
-    percent_list[pid] = percent
-    schedule_next_scan(pid, expected, percent_list)
-    
 
-
+    
 def main():
     """Main function"""
     print("\n" + "="*60)
