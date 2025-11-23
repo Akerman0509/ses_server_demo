@@ -1,14 +1,27 @@
 
 
 {
-    "num_processes": 2,
-    "messages_per_process": 3,
-    "message_rate_min": 1,
-    "message_rate_max": 3,
+    "num_processes": 15,
+    "messages_per_process": 150,
+    "message_rate_min": 100,
+    "message_rate_max": 150,
     "base_port": 5000,
     "processes": [
         {"id": 0, "host": "localhost", "port": 5000},
         {"id": 1, "host": "localhost", "port": 5001},
-        {"id": 2, "host": "localhost", "port": 5002}
+        {"id": 2, "host": "localhost", "port": 5002},
+        {"id": 3, "host": "localhost", "port": 5003},
+        {"id": 4, "host": "localhost", "port": 5004},
+        {"id": 5, "host": "localhost", "port": 5005},
+        {"id": 6, "host": "localhost", "port": 5006},
+        {"id": 7, "host": "localhost", "port": 5007},
+        {"id": 8, "host": "localhost", "port": 5008},
+        {"id": 9, "host": "localhost", "port": 5009},
+        {"id": 10, "host": "localhost", "port": 5010},
+        {"id": 11, "host": "localhost", "port": 5011},
+        {"id": 12, "host": "localhost", "port": 5012},
+        {"id": 13, "host": "localhost", "port": 5013},
+        {"id": 14, "host": "localhost", "port": 5014}
+        
     ]
 }

@@ -14,6 +14,7 @@ import random
 from datetime import datetime
 from pathlib import Path
 
+
 class MsgQueue:
     def __init__ (self, num_processes):
         self.queue = [0] * num_processes
@@ -134,9 +135,11 @@ class Process:
         self.stats = {
             'received': 0,
             'delivered': 0,
-            'buffered': 0
+            'buffered': 0,
+            'sent': 0
         }
         self.stats_lock = threading.Lock()
+        self.file_lock = threading.Lock()
         
         # Networking
         self.host = config['processes'][process_id]['host']
@@ -229,8 +232,6 @@ class Process:
     
     def handle_connection(self, client_socket):
         """Xử lý một connection từ sender"""
-        # try:
-            # Nhận data
         data = b""
         while True:
             chunk = client_socket.recv(4096)
@@ -248,10 +249,6 @@ class Process:
             client_socket.sendall(b"ACK")
             self.receive_message(msg)
                 
-        # except Exception as e:
-        #     self.logger.error(f"Error handling connection: {e}")
-        # finally:
-        #     client_socket.close()
     
     def receive_message(self, msg):
         """Xử lý message nhận được"""
@@ -280,8 +277,6 @@ class Process:
         return True
     
     def can_deliver(self, msg):
-        sender = msg.sender_id
-        ts = msg.timestamp
         msg_queue = msg.msg_queue
         
         with self.clock_lock:
@@ -296,6 +291,20 @@ class Process:
                     )
                     return False
             return True
+    
+    
+    def log_progress (self):
+        with self.file_lock:
+            file_name = f"temp_status/P{self.process_id}.txt"
+            # Tạo bản ghi mới
+            vector_clock = self.vector_clock.vector
+            msg_queue= self.vector_clock.msg_queue.queue
+            # Ghi lại vào file
+            with open(file_name, "w") as f:
+                f.write(str(vector_clock) + "\n")
+                f.write(str(msg_queue) + "\n")
+
+        
     
     def deliver_message(self, msg):
         """Deliver message và cập nhật vector clock"""
@@ -313,6 +322,8 @@ class Process:
         self.logger.info(
             f"[✓ DELIVERED] {msg}, VC: {old_vc} → {new_vc}"
         )
+        
+        self.log_progress()
     
     def buffer_message(self, msg):
         """Đưa message vào buffer"""
@@ -382,6 +393,7 @@ class Process:
         )
         # update msg queue
         self.vector_clock.msg_queue.update_queue_send(target_id, timestamp)
+        self.log_progress()
         
         # Gửi qua socket
         target_info = self.config['processes'][target_id]
@@ -405,10 +417,9 @@ class Process:
             self.logger.info(f"[→ SENT] {msg}, TS={timestamp}, queue={msg.msg_queue}")
             
         sock.close()
-            
-        # except Exception as e:
-        #     self.logger.error(f"Failed to send message to P{target_id}: {e}")
-        #     return False
+        with self.stats_lock:
+            self.stats['sent'] += 1
+
     
     def sender_thread_func(self, target_id):
         """Thread gửi messages tới một process cụ thể"""
@@ -432,8 +443,8 @@ class Process:
             # Random delay dựa trên message rate
             rate = random.uniform(min_rate, max_rate)
             delay = 60.0 / rate  # Convert messages/minute to seconds
-            # time.sleep(delay)
-            time.sleep(2)
+            time.sleep(delay)
+            # time.sleep(2)
         
         self.logger.info(f"Sender thread completed for P{target_id}")
     
@@ -484,6 +495,9 @@ class Process:
             self.sender_threads.append(thread)
         
         self.logger.info(f"Started {len(self.sender_threads)} sender threads")
+        
+    # def wait_others(self):
+        
     
     def run(self):
         """Chạy process"""
@@ -506,7 +520,7 @@ class Process:
             time.sleep(5)
             
             # In statistics
-            # self.print_statistics()
+            self.print_statistics()
             
         except KeyboardInterrupt:
             self.logger.info("Received interrupt signal")
@@ -524,10 +538,11 @@ class Process:
             buffer_size = len(self.message_buffer)
         
         self.logger.info("="*60)
-        self.logger.info("FINAL STATISTICS")
+        self.logger.info(f"FINAL STATISTICS of P{self.process_id}")
         self.logger.info("="*60)
         self.logger.info(f"Messages Received:    {stats['received']}")
         self.logger.info(f"Messages Delivered:   {stats['delivered']}")
+        self.logger.info(f"Messages Sent:        {stats['sent']}")
         self.logger.info(f"Messages Buffered:    {stats['buffered']}")
         self.logger.info(f"Current Buffer Size:  {buffer_size}")
         self.logger.info(f"Final Vector Clock:   {self.vector_clock}")
