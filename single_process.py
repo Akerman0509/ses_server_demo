@@ -144,6 +144,7 @@ class Process:
         # Networking
         self.host = config['processes'][process_id]['host']
         self.port = config['processes'][process_id]['port']
+        self.expected_msg = config['messages_per_process'] * (self.num_processes -1) * 2
         self.server_socket = None
         
         # Threading
@@ -299,10 +300,13 @@ class Process:
             # Tạo bản ghi mới
             vector_clock = self.vector_clock.vector
             msg_queue= self.vector_clock.msg_queue.queue
+            
+            percent = round(vector_clock[self.process_id] * 100 / self.expected_msg)
             # Ghi lại vào file
             with open(file_name, "w") as f:
                 f.write(str(vector_clock) + "\n")
                 f.write(str(msg_queue) + "\n")
+                f.write(f"{percent}% completed\n")
 
         
     
@@ -448,11 +452,6 @@ class Process:
         
         self.logger.info(f"Sender thread completed for P{target_id}")
     
-    def shake_hands(self):
-        for target_id in range(self.num_processes):
-            """Gửi handshake tới tất cả processes khác"""
-            if target_id == self.process_id:
-                continue
             
     def shake_hands(self, retry_interval=2.0):
         """

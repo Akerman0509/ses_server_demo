@@ -8,12 +8,9 @@ import subprocess
 import sys
 import time
 import os
-import signal
 import json
 from pathlib import Path
 import threading
-
-RUNNING_FLAG = True
 
 
 class ProcessLauncher:
@@ -79,6 +76,9 @@ class ProcessLauncher:
         for log_file in Path('logs').glob('process_*.log'):
             log_file.unlink()
         print("✓ Cleaned old log files")
+        for temp_file in Path('temp_status').glob('P*.txt'):
+            temp_file.unlink()
+        print("✓ Cleaned old temp status files")
         
         
     def launch_process(self, process_id):
@@ -133,11 +133,12 @@ class ProcessLauncher:
         for line in iter(process.stdout.readline, ''):
             print(f"[P{process_id}] {line.strip()}")
     
-    def update_process_line(self, p_info, relative_line, percent):
+    def update_process_line(self, p_info, relative_line):
         pid = p_info['process'].pid
         status = p_info['process'].poll()
         status_str = "Running" if status is None else f"Exited({status})"
-        new_content = f"Process {p_info['id']:<6} {pid:<8} {status_str:<10} {percent:>3}% Complete"
+        new_content = f"Process {p_info['id']:<6} {pid:<8} {status_str:<10}"
+        # print (f"{new_content}")
 
         # Move cursor, clear line, write content
     # Save cursor position, move up, update, restore cursor
@@ -148,65 +149,87 @@ class ProcessLauncher:
         sys.stdout.write("\033[u")  # Restore cursor position
         sys.stdout.flush()
 
-        
+            
     def scan_loop(self, pid, expected):
-        global RUNNING_FLAG
-
-        while RUNNING_FLAG:
-            file_name = f"temp_status/P{pid}.txt"
-            if not os.path.exists(file_name):
-                return
-            with open(file_name, "r") as f:
-                line = f.readline().strip().strip("[]")
-                numbers = [float(x) for x in line.split(",")]
-
-            if numbers[pid] >= expected:
-                RUNNING_FLAG = False
-                
-            percent  = round(numbers[pid] * 100 / expected)
-            total_process = len(self.processes)
-            lines_up = total_process - pid
-            # Cập nhật dòng hiển thị tiến trình
-            self.update_process_line(self.processes[pid], lines_up, percent)
-            time.sleep(1.5)
+        file_name = f"temp_status/P{pid}.txt"
         
+        # Wait for file to be created
+        print(f"Thread {pid}: Waiting for {file_name}...")
+        while not os.path.exists(file_name):
+            time.sleep(0.5)
+        
+        print(f"Thread {pid}: File found, starting monitoring...")
+        
+        FLAG = True
+        while FLAG:
+            try:
+                # ĐỌC VÀ ĐÓNG FILE NGAY LẬP TỨC
+                with open(file_name, "r") as f:
+                    line = f.readline().strip().strip("[]")
+                # File đã đóng ở đây!
+                if not line:
+                    time.sleep(1.5)
+                    continue
+                numbers = [float(x) for x in line.split(",")]
+                if numbers[pid] >= expected:
+                    FLAG = False
+                    print(f"Thread {pid}: Reached target {expected}")
+                    print (f"Debug: Final numbers for Process {pid}: {numbers}, progress: {numbers[pid]}/{expected}")
+                    
+                    
+                percent = round(numbers[pid] * 100 / expected)
+                total_process = len(self.processes)
+                lines_up = total_process - pid
+                
+                self.update_process_line(self.processes[pid], lines_up)
+                
+            except (IndexError, ValueError, FileNotFoundError) as e:
+                pass
+            time.sleep(5)  
+        print(f"Thread {pid}: Monitoring complete")
+        
+        
+    def monitor_loop(self):
+        total_process = len(self.processes)
+
+        while True:
+            # Update each process line
+            for idx, p_info in enumerate(self.processes):
+                lines_up = total_process - idx
+                self.update_process_line(p_info, lines_up)
+
+            # Check if all processes finished
+            all_finished = all(
+                p['process'].poll() is not None 
+                for p in self.processes
+            )
+
+            if all_finished:
+                print("\n\n✓ All processes have finished.")
+                self.shutdown_all()
+                break
+
+            time.sleep(1)
+    
     def monitor_processes(self):
         """Giám sát các processes"""
         print("\nMonitoring processes... Press Ctrl+C to stop all.\n")
         print(f"{'Process ID':<12} {'PID':<8} {'Status':<10} ")
         print("-" * 60)
 
-        total_process = len(self.processes)
         for p_info in self.processes:
             pid = p_info['process'].pid
-            print(f"Process {p_info['id']:<6} {pid:<8} {'Running':<10} {'0':>3}% Complete")
-        
-        expected = 2* (total_process - 1) *  self.config['messages_per_process']
-        
-        for idx, p_info in enumerate(self.processes):
-            # self.schedule_next_scan(idx, expected)
-            t = threading.Thread(target=self.scan_loop, args=(idx, expected), daemon=True)
-            t.start()
-            
-            
-        # while True:
-        #     # Update each process line
-        #     for idx, p_info in enumerate(self.processes):
-        #         lines_up = total_process - idx  # How many lines to move 
-        #         self.update_process_line(p_info, lines_up)
-        #     # Check if all processes finished
-        #     all_finished = all(
-        #         p['process'].poll() is not None 
-        #         for p in self.processes
-        #     )
-            
-        #     if all_finished:
-        #         # Move cursor to end
-        #         sys.stdout.write(f"\033[{20 + total_process}H")
-        #         print("\n\n✓ All processes have finished.")
-        #         RUNNING_FLAG = False
-        #         self.shutdown_all()
-        #         break
+            print(f"Process {p_info['id']:<6} {pid:<8} Running")
+
+        # Start monitor thread
+        self.monitor_thread = threading.Thread(
+            target=self.monitor_loop,
+            daemon=False   # IMPORTANT: do NOT use daemon thread here
+        )
+        self.monitor_thread.start()
+
+        # Let main thread wait for monitor thread
+        self.monitor_thread.join()
         
     def shutdown_all(self):
         """Tắt tất cả processes"""
@@ -263,10 +286,11 @@ def main():
     # Khởi động tất cả processes
     if launcher.launch_all():
         # Giám sát processes
-        launcher.monitor_processes()
+        # launcher.monitor_processes()
         
         # Hiển thị thông tin log
         # launcher.show_logs()
+        pass
     else:
         print("\n✗ Failed to launch all processes. Check the errors above.")
         launcher.shutdown_all()
